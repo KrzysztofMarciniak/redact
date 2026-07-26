@@ -1,0 +1,39 @@
+name: Static Build
+on:
+  push:
+    branches: [ master ]
+    tags: [ '*' ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch: {}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libpng-dev libx11-dev \
+            zlib1g-dev libxcb1-dev libxau-dev libxdmcp-dev
+      - name: Build static binary
+        run: |
+          make clean || true
+          make static
+      - name: Verify binary is static
+        run: |
+          file redact
+          size redact
+          ldd redact && exit 1 || echo "confirmed static (no dynamic deps)"
+      - name: Rename binary for release
+        run: cp redact redact-static-linux-x86_64
+      - name: Create GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: redact-static-linux-x86_64
+          generate_release_notes: true
